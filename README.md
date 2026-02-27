@@ -182,7 +182,7 @@ $GLOBALS['age_gate_config'] = [
 // CALLBACK HANDLER
 // ============================================================================
 
-if (isset($_GET['code']) && isset($_GET['state'])) {
+if ((isset($_GET['code']) || isset($_GET['error'])) && isset($_GET['state'])) {
     $success = agewallet_process_callback();
     $return_to = $_SESSION['age_gate_return_to'] ?? '/';
     unset($_SESSION['age_gate_return_to']);
