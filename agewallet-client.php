@@ -15,11 +15,11 @@
 // CONFIGURATION
 // ============================================================================
 
-$env = 'prod'; // 'prod' or 'dev'
+$env = 'prod'; // 'prod' for app.agewallet.io, or any subdomain (e.g. 'dev', 'dev3')
 
-$baseUrl = ($env === 'dev')
-    ? 'https://dev.agewallet.io'
-    : 'https://app.agewallet.io';
+$baseUrl = ($env === 'prod')
+    ? 'https://app.agewallet.io'
+    : 'https://' . $env . '.agewallet.io';
 
 $GLOBALS['agewallet_config'] = [
     'client_id'     => 'YOUR_CLIENT_ID',
@@ -33,6 +33,7 @@ $GLOBALS['agewallet_config'] = [
 
     'scopes'        => 'openid age',
     'clock_skew'    => 60,
+    'metadata'      => null, // Opaque per-verification string, up to 4096 bytes
 ];
 
 // ============================================================================
@@ -173,12 +174,21 @@ function agewallet_get_claims(): ?array {
 }
 
 /**
+ * Get the metadata string returned with this verification (or null if none was sent).
+ *
+ * @return string|null
+ */
+function agewallet_get_metadata(): ?string {
+    return $_SESSION['aw_metadata'] ?? null;
+}
+
+/**
  * Clear verification status
  *
  * @return void
  */
 function agewallet_reset(): void {
-    unset($_SESSION['aw_verified'], $_SESSION['aw_claims']);
+    unset($_SESSION['aw_verified'], $_SESSION['aw_claims'], $_SESSION['aw_metadata']);
 }
 
 /**
@@ -198,7 +208,7 @@ function agewallet_start_auth(): void {
     $_SESSION['aw_nonce'] = $nonce;
     $_SESSION['aw_verifier'] = $verifier;
 
-    $url = $config['authorize_url'] . '?' . http_build_query([
+    $params = [
         'response_type'         => 'code',
         'client_id'             => $config['client_id'],
         'redirect_uri'          => $config['redirect_uri'],
@@ -207,7 +217,16 @@ function agewallet_start_auth(): void {
         'nonce'                 => $nonce,
         'code_challenge'        => $challenge,
         'code_challenge_method' => 'S256',
-    ]);
+    ];
+
+    if (!empty($config['metadata'])) {
+        if (strlen($config['metadata']) > 4096) {
+            throw new InvalidArgumentException('metadata exceeds 4096-byte limit');
+        }
+        $params['metadata'] = $config['metadata'];
+    }
+
+    $url = $config['authorize_url'] . '?' . http_build_query($params);
 
     header('Location: ' . $url);
     exit;
@@ -250,6 +269,13 @@ function agewallet_process_callback(): bool {
     $_SESSION['aw_verified'] = true;
     $_SESSION['aw_claims'] = $claims;
 
+    if (!empty($tokens['access_token'])) {
+        $accessClaims = _aw_parse_jwt($tokens['access_token'])['payload'] ?? [];
+        if (isset($accessClaims['metadata'])) {
+            $_SESSION['aw_metadata'] = $accessClaims['metadata'];
+        }
+    }
+
     return true;
 }
 
@@ -269,6 +295,9 @@ switch ($action) {
         break;
 
     case 'start':
+        if (isset($_GET['metadata'])) {
+            $GLOBALS['agewallet_config']['metadata'] = $_GET['metadata'];
+        }
         agewallet_start_auth();
         break;
 

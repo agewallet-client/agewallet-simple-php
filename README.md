@@ -46,7 +46,8 @@ $GLOBALS['agewallet_config'] = [
 | `client_id` | Your AgeWallet client ID |
 | `client_secret` | Client secret (optional with PKCE) |
 | `redirect_uri` | URL where AgeWallet redirects after auth |
-| `env` | `'prod'` for app.agewallet.io, `'dev'` for dev.agewallet.io |
+| `env` | `'prod'` for app.agewallet.io; any other value maps to `<value>.agewallet.io` (e.g. `'dev'`, `'dev3'`) |
+| `metadata` | Optional opaque string (max 4096 bytes) attached to a verification. See [Metadata Pass-Through](#metadata-pass-through). |
 
 ## Usage
 
@@ -94,6 +95,14 @@ Get the verified claims from the ID token.
 ```php
 $claims = agewallet_get_claims();
 // ['sub' => '...', 'age_verified' => true, ...]
+```
+
+### `agewallet_get_metadata(): ?string`
+
+Get the metadata string returned with the current verification, or `null` if no metadata was sent in. See [Metadata Pass-Through](#metadata-pass-through).
+
+```php
+$metadata = agewallet_get_metadata();
 ```
 
 ### `agewallet_reset(): void`
@@ -418,6 +427,53 @@ require_once '../age-gate.php';
 </body>
 </html>
 ```
+
+---
+
+## Metadata Pass-Through
+
+You can attach an arbitrary opaque string (up to 4096 bytes) to each verification — for example an order ID, customer ID, or any other reference value. AgeWallet stores it server-side and returns it to your client, where you can read it back with `agewallet_get_metadata()`.
+
+### Setting metadata
+
+Set `$GLOBALS['agewallet_config']['metadata']` **before** calling `agewallet_start_auth()`:
+
+```php
+define('AGEWALLET_INCLUDE', true);
+require 'agewallet-client.php';
+
+$GLOBALS['agewallet_config']['metadata'] = 'order:' . $orderId;
+agewallet_start_auth();
+```
+
+Or set it once for the whole site in the configuration block at the top of `agewallet-client.php`.
+
+### Standalone mode
+
+The standalone start URL also accepts a `metadata` query parameter:
+
+```
+/agewallet-client.php?action=start&metadata=order:XYZ-42
+```
+
+### Reading metadata back
+
+After successful verification, retrieve the metadata from any subsequent request:
+
+```php
+$metadata = agewallet_get_metadata();
+if ($metadata !== null) {
+    // e.g. 'order:XYZ-42'
+}
+```
+
+The value is stored in `$_SESSION['aw_metadata']` and persists for the life of the PHP session. `agewallet_reset()` clears it.
+
+### Notes
+
+- **Size limit:** AgeWallet's server rejects metadata larger than 4096 bytes. The client also throws `InvalidArgumentException` if you try to send more.
+- **Optional:** If you don't set `metadata`, nothing changes — `agewallet_get_metadata()` returns `null` and the rest of the SDK behaves identically.
+- **Source of truth:** The returned value is read from the access token's signed claim (delivered server-to-server over TLS from the AgeWallet token endpoint), not from the redirect URL.
 
 ---
 
