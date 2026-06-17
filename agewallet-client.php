@@ -6,7 +6,7 @@
  * Handles OAuth2/OIDC authentication flow with PKCE support.
  *
  * @package     AgeWallet
- * @version     1.0.0
+ * @version     1.1.0
  * @link        https://github.com/agewallet-client/agewallet-php-client
  * @link        https://agewallet.io
  */
@@ -15,7 +15,7 @@
 // CONFIGURATION
 // ============================================================================
 
-$env = 'prod'; // 'prod' for app.agewallet.io, or any subdomain (e.g. 'dev', 'dev3')
+$env = 'prod'; // 'prod' for app.agewallet.io, or another subdomain for testing
 
 $baseUrl = ($env === 'prod')
     ? 'https://app.agewallet.io'

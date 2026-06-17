@@ -46,7 +46,7 @@ $GLOBALS['agewallet_config'] = [
 | `client_id` | Your AgeWallet client ID |
 | `client_secret` | Client secret (optional with PKCE) |
 | `redirect_uri` | URL where AgeWallet redirects after auth |
-| `env` | `'prod'` for app.agewallet.io; any other value maps to `<value>.agewallet.io` (e.g. `'dev'`, `'dev3'`) |
+| `env` | `'prod'` for app.agewallet.io; any other value maps to `<value>.agewallet.io` for testing |
 | `metadata` | Optional opaque string (max 4096 bytes) attached to a verification. See [Metadata Pass-Through](#metadata-pass-through). |
 
 ## Usage
